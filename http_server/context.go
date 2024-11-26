@@ -26,6 +26,14 @@ func (c *HTTPContext) sendResponseJSON(statusCode int, data any) {
 	}
 }
 
+func (c *HTTPContext) sendSuccessResponse(data any) {
+	c.sendResponseJSON(http.StatusOK, ApiResponse{
+		Success: true,
+		Code:    200,
+		Data:    data,
+	})
+}
+
 func (c *HTTPContext) sendErrorResponse(statusCode int, errCode int, msg string) {
 	c.sendResponseJSON(statusCode, ApiResponse{
 		Success: false,

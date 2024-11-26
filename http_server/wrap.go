@@ -24,11 +24,12 @@ func SimpleWrapper(apiFunc SimpleWrapFunc) func(w http.ResponseWriter, r *http.R
 			var apiError *errval.ApiError
 			if errors.As(err, &apiError) {
 				ctx.sendErrorResponse(http.StatusBadRequest, apiError.Code, apiError.Error())
+				return
 			}
-			ctx.sendErrorResponse(http.StatusBadRequest, http.StatusBadRequest, err.Error())
+			ctx.sendErrorResponse(http.StatusBadRequest, -1, err.Error())
 			return
 		}
-		ctx.sendResponseJSON(http.StatusOK, ApiResponse{Success: true, Code: http.StatusOK, Data: res})
+		ctx.sendSuccessResponse(res)
 	}
 }
 
@@ -36,12 +37,12 @@ func JSONRequestBodyWrapper[T any](apiFunc InterfaceWrapFunc[T]) func(w http.Res
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewHTTPContext(w, r)
 		if r.ContentLength <= 0 {
-			ctx.sendErrorResponse(http.StatusBadRequest, http.StatusBadRequest, "missing request body")
+			ctx.sendErrorResponse(http.StatusBadRequest, -1, "missing request body")
 			return
 		}
 		val, err := decodeBody[T](r)
 		if err != nil {
-			ctx.sendErrorResponse(http.StatusBadRequest, http.StatusBadRequest, err.Error())
+			ctx.sendErrorResponse(http.StatusBadRequest, -1, err.Error())
 			return
 		}
 		res, err := apiFunc(val, ctx)
@@ -49,11 +50,12 @@ func JSONRequestBodyWrapper[T any](apiFunc InterfaceWrapFunc[T]) func(w http.Res
 			var apiError *errval.ApiError
 			if errors.As(err, &apiError) {
 				ctx.sendErrorResponse(http.StatusBadRequest, apiError.Code, apiError.Error())
+				return
 			}
 			ctx.sendErrorResponse(http.StatusBadRequest, -1, err.Error())
 			return
 		}
-		ctx.sendResponseJSON(http.StatusOK, ApiResponse{Success: true, Data: res})
+		ctx.sendSuccessResponse(res)
 	}
 }
 
