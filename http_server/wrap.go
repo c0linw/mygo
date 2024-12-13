@@ -3,6 +3,7 @@ package http_server
 import (
 	"encoding/json"
 	"errors"
+	"github.com/gorilla/schema"
 	"mygo/errval"
 	"mygo/validation"
 	"net/http"
@@ -15,6 +16,8 @@ type ApiResponse struct {
 	Code    int  `json:"code"`
 	Data    any  `json:"data"`
 }
+
+var decoder = schema.NewDecoder()
 
 func SimpleWrapper(apiFunc SimpleWrapFunc) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +62,23 @@ func JSONRequestBodyWrapper[T any](apiFunc InterfaceWrapFunc[T]) func(w http.Res
 	}
 }
 
+func QueryParamWrapper[T any](apiFunc InterfaceWrapFunc[T]) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := NewHTTPContext(w, r)
+		params, err := decodeQueryParams[T](r)
+		if err != nil {
+			ctx.sendErrorResponse(http.StatusBadRequest, 400, err.Error())
+			return
+		}
+		res, err := apiFunc(params, ctx)
+		if err != nil {
+			ctx.sendErrorResponse(http.StatusInternalServerError, -1, err.Error())
+			return
+		}
+		ctx.sendSuccessResponse(res)
+	}
+}
+
 func decodeBody[T any](r *http.Request) (*T, error) {
 	body := new(T)
 	if err := json.NewDecoder(r.Body).Decode(body); err != nil {
@@ -68,4 +88,15 @@ func decodeBody[T any](r *http.Request) (*T, error) {
 		return nil, err
 	}
 	return body, nil
+}
+
+func decodeQueryParams[T any](r *http.Request) (*T, error) {
+	values := new(T)
+	if err := decoder.Decode(values, r.URL.Query()); err != nil {
+		return nil, err
+	}
+	if err := validation.ValidateStruct(values); err != nil {
+		return nil, err
+	}
+	return values, nil
 }
